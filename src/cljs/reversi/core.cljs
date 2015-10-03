@@ -43,7 +43,15 @@
   "Player always plays as black"
   (swap! board #(set-board-tile (inc x) (inc y) "black" %)))
 
+(defn is-valid-move? [x y board])
+
 ;;--- VIEWS
+(defn count-black [board]
+  (count (filter #(= "black" %) (flatten board))))
+
+(defn score [board]
+  [:h2.score "Score: " (count-black board)])
+
 (defn render-cell [x y color]
   ^{:key (str x y)}
   [:td
@@ -62,6 +70,7 @@
 
 (defn reversi []
   [:div
+    [score @board]
     [render-board @board]
     [give-up]])
 ;; -------------------------
