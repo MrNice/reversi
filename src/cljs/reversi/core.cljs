@@ -153,17 +153,17 @@
 ;; If neither player can play, game over
 ;; If board is full, game over
 (defonce game-loop (go-loop []
-  (if-not (and (any-moves? "black") (any-moves? "white"))
+  (if-not (or (any-moves? "black") (any-moves? "white"))
     (do (js/alert "Game Over!") (reset! board (initialize-board))))
   (if (any-moves? "black")
     (if @*watch*
       (if-let [moves (any-moves? "black")]
         (do
-          (<! (timeout 1250))
+          (<! (timeout 200))
           (apply-moves! (computer-move moves))))
       (apply-moves! (<! player-chan)))
     true)
-  (<! (timeout 1500))
+  (<! (timeout (if @*watch* 200 1500)))
   (if-let [moves (any-moves? "white")]
     (apply-moves! (computer-move moves)))
   (recur)))
