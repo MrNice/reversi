@@ -1,19 +1,24 @@
 (ns reversi.core
-    (:require [reagent.core :as reagent :refer [atom]]
-              [reagent.session :as session]
-              [secretary.core :as secretary :include-macros true]
-              [goog.events :as events]
-              [goog.history.EventType :as EventType])
-    (:import goog.History))
+  (:require-macros [cljs.core.async.macros :refer [go go-loop]])
+  (:require [reagent.core :as reagent :refer [atom]]
+            [reagent.session :as session]
+            [cljs.core.async :refer [chan timeout <! put!]]
+            [secretary.core :as secretary :include-macros true]
+            [goog.events :as events]
+            [goog.history.EventType :as EventType])
+  (:import goog.History))
 
 (defonce *debug* (atom true))
 (defonce message (atom ""))
 (defn toggle-debug [] (swap! *debug* not))
 
+(def player-chan (chan))
+(def computer-chan (chan 1))
 (def board-size 8)
 ;; TODO (Nicholas): Generate these based off of board size
-(def initial-board [[2 3 "white"] [1 3 "white"] [3 3 "white"] [3 4 "black"] [4 3 "black"] [4 4 "white"]])
-; (def initial-board [[3 3 "white"] [3 4 "black"] [4 3 "black"] [4 4 "white"]])
+; The below was a test board
+; (def initial-board [[3 3 "black"] [3 4 "white"] [4 3 "white"] [2 4 "black"] [4 2 "black"]])
+(def initial-board [[3 3 "white"] [3 4 "black"] [4 3 "black"] [4 4 "white"]])
 (def test-moves [[1 1 "white"]])
 
 ;; -------------------------
@@ -45,8 +50,7 @@
 (defonce board (atom (initialize-board)))
 
 (defn apply-moves! [moves]
-  (swap! board #(apply-moves moves %))
-  true)
+  (swap! board #(apply-moves moves %)))
 
 (defn opposite-color [color]
   (if (= color "black") "white" "black"))
@@ -78,17 +82,23 @@
 
 (defn traverse [board start-color startx starty direction]
   "Given a possible move, figure out which stones will flip
-   if the move is played. Returns an empty vector if none"
+   if the move is played. Returns an empty vector if none.
+   Note: in order to decide whether or not we hit the start color,
+   we prefix the move list with true or false once the recursion
+   bottoms out"
   (let [tryx (+ startx (first direction))
         tryy (+ starty (last direction))
         other-color (opposite-color start-color)]
     (if (keep-looking? tryx tryy other-color board)
       (vec (concat (traverse board start-color tryx tryy direction) [[tryx tryy start-color]]))
+      ; If we hit an edge
       (if (= (get-space tryx tryy board) start-color)
         [true]
         [false]))))
 
 (defn validator [moves]
+  "Turn the output of traverse into something that can be consumed by
+   apply-moves!"
   (if (and (true? (first moves)) (> (count moves) 1))
     (vec (rest moves))
     false))
@@ -98,20 +108,21 @@
    of all the moves to make if the move is played. Uses structural sharing
    of immutable data to great effect here"
   (if (and (on-board? x y) (unoccupied? x y board))
-    (let [flip-moves (first (filterv #(not= false %) (mapv validator (mapv (partial traverse board color x y) directions))))]
+    (let [flip-moves (apply concat (filterv #(not= false %)
+                              (mapv validator
+                                (mapv (partial traverse board color x y)
+                                      directions))))]
       (if (< 0 (count flip-moves))
-        (apply-moves! flip-moves)
+        (concat [[x y color]] flip-moves)
         false))
     false))
 
 (defn handle-move [color x y]
-  (if (valid-move? color x y @board)
-    (do (swap! board #(set-board-tile x y color %)) (reset! message ""))
+  (if-let [moves (valid-move? color x y @board)]
+    (do (js/console.log (pr-str moves)) (reset! message "") (put! player-chan moves))
     (reset! message "Not a valid move")))
 
 (def handle-player-move (partial handle-move "black"))
-
-(def handle-computer-move (partial handle-move "white"))
 
 ;;--- VIEW HELPERS
 (defn count-black [board]
@@ -154,6 +165,44 @@
     [render-board @board]
     [give-up][debug-button]])
 
+;; Game play
+;; Computer scans to see if black has any available moves
+  ;; Player 1 goes
+;; Computer scans to see if white has any available moves
+  ;; Computer selects current largest move and plays (max strat, weak tho)
+;; If neither player can play, game over
+;; If board is full, game over
+(defn any-moves? [color]
+  "See if there is a single place on the board to where there's a valid move
+  for this color"
+  (let [moves (filterv identity
+                (for [x (range board-size) y (range board-size)]
+                  (valid-move? color x y @board)))]
+    (if (< 0 (count moves))
+      moves
+      false)))
+
+;;--- AI Computer stuff
+(defn computer-move [moves]
+  "Computer naively selects the largest scoring move"
+  (js/console.log "Here's the computer thoughts: " (pr-str moves))
+  (reduce
+    (fn [acc val]
+      (if (> (count acc) (count val))
+        acc
+        val))
+    (filterv identity moves)))
+
+(defonce game-loop (go-loop []
+  (if (any-moves? "black")
+    (apply-moves! (<! player-chan))
+    (js/console.log "idk"))
+  (<! (timeout 1500))
+  (if-let [moves (any-moves? "white")]
+    (apply-moves! (computer-move moves)))
+  (if-not (and (any-moves? "black") (any-moves? "white"))
+    (do (js/alert "Game Over!") (reset! board (initialize-board))))
+  (recur)))
 
 ;; -------------------------
 ;; Initialize app
