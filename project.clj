@@ -17,6 +17,7 @@
                  [environ "1.0.1"]
                  [org.clojure/clojurescript "1.7.122" :scope "provided"]
                  [org.clojure/core.async "0.1.346.0-17112a-alpha"]
+                 [alandipert/storage-atom "1.2.4"]
                  [secretary "1.2.3"]]
 
   :plugins [[lein-environ "1.0.1"]

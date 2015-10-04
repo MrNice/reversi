@@ -4,13 +4,14 @@
             [cljs.core.async :refer [chan timeout <! put!]]
             [secretary.core :as secretary :include-macros true]
             [goog.events :as events]
+            [alandipert.storage-atom :refer [local-storage]]
             [goog.history.EventType :as EventType])
   (:require-macros [cljs.core.async.macros :refer [go go-loop]])
   (:import goog.History))
 
 (defonce message (atom ""))
-(defonce *debug* (atom true))
-(defonce *watch* (atom false))
+(defonce *debug* (local-storage (atom true) :debug))
+(defonce *watch* (local-storage (atom false) :watch))
 (defn toggle-debug [] (swap! *debug* not))
 (defn toggle-watch [] (swap! *watch* not))
 
@@ -48,7 +49,7 @@
 
 (defn initialize-board [] (apply-moves initial-board (make-empty-board)))
 
-(defonce board (atom (initialize-board)))
+(defonce board (local-storage (atom (initialize-board)) :board))
 
 (defn apply-moves! [moves]
   (swap! board #(apply-moves moves %)))
