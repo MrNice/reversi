@@ -153,6 +153,8 @@
     [message-header]
     [render-board @board]
     [give-up][debug-button]])
+
+
 ;; -------------------------
 ;; Initialize app
 (defn mount-root []
