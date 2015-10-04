@@ -13,7 +13,6 @@
 (defn toggle-debug [] (swap! *debug* not))
 
 (def player-chan (chan))
-(def computer-chan (chan 1))
 (def board-size 8)
 ;; TODO (Nicholas): Generate these based off of board size
 ; The below was a test board
@@ -56,7 +55,6 @@
   (if (= color "black") "white" "black"))
 
 ;;--- MOVE VALIDATION AND PIECE FLIPPING LOGIC
-
 (defn within-bounds? [min max value]
   "Helper function to determine if a number is between two others"
   (and (>= value min) (<= value max)))
@@ -119,10 +117,49 @@
 
 (defn handle-move [color x y]
   (if-let [moves (valid-move? color x y @board)]
-    (do (js/console.log (pr-str moves)) (reset! message "") (put! player-chan moves))
+    (do (reset! message "") (put! player-chan moves))
     (reset! message "Not a valid move")))
 
 (def handle-player-move (partial handle-move "black"))
+
+(defn any-moves? [color]
+  "See if there is a single place on the board to where there's a valid move
+  for this color"
+  (let [moves (filterv identity
+                (for [x (range board-size) y (range board-size)]
+                  (valid-move? color x y @board)))]
+    (if (< 0 (count moves))
+      moves
+      false)))
+
+;;--- AI Computer stuff
+(defn computer-move [moves]
+  "Computer naively selects the largest scoring move"
+  ;; Find the greatest when count is applied.... probably a better way to do this
+  (reduce
+    (fn [acc val]
+      (if (> (count acc) (count val))
+        acc
+        val))
+    (filterv identity moves)))
+
+;; Game play
+;; Computer scans to see if black has any available moves
+  ;; Player 1 goes
+;; Computer scans to see if white has any available moves
+  ;; Computer selects current largest move and plays (max strat, weak tho)
+;; If neither player can play, game over
+;; If board is full, game over
+(defonce game-loop (go-loop []
+  (if-not (and (any-moves? "black") (any-moves? "white"))
+    (do (js/alert "Game Over!") (reset! board (initialize-board))))
+  (if (any-moves? "black")
+    (apply-moves! (<! player-chan))
+    true)
+  (<! (timeout 1500))
+  (if-let [moves (any-moves? "white")]
+    (apply-moves! (computer-move moves)))
+  (recur)))
 
 ;;--- VIEW HELPERS
 (defn count-black [board]
@@ -133,13 +170,14 @@
   [:h2.score "Score: " (count-black board)])
 
 (defn render-cell [x y color]
-  ^{:key (str x y)}
-  [:td (str x ", " y)
-    [:div.piece {:class color
-      :on-click #(handle-player-move x y)}]])
+  (let [debug @*debug*]
+    ^{:key (str x y debug)}
+    [:td (if debug (str x ", " y))
+      [:div.piece {:class color
+        :on-click #(handle-player-move x y)}]]))
 
 (defn render-row [x row]
-  ^{:key (str x)} [:tr (map-indexed (partial render-cell x) row)])
+  ^{:key (str x)} [:tr (doall (map-indexed (partial render-cell x) row))])
 
 (defn render-board [board]
   [:table (map-indexed render-row board)])
@@ -163,46 +201,8 @@
     [score @board]
     [message-header]
     [render-board @board]
-    [give-up][debug-button]])
-
-;; Game play
-;; Computer scans to see if black has any available moves
-  ;; Player 1 goes
-;; Computer scans to see if white has any available moves
-  ;; Computer selects current largest move and plays (max strat, weak tho)
-;; If neither player can play, game over
-;; If board is full, game over
-(defn any-moves? [color]
-  "See if there is a single place on the board to where there's a valid move
-  for this color"
-  (let [moves (filterv identity
-                (for [x (range board-size) y (range board-size)]
-                  (valid-move? color x y @board)))]
-    (if (< 0 (count moves))
-      moves
-      false)))
-
-;;--- AI Computer stuff
-(defn computer-move [moves]
-  "Computer naively selects the largest scoring move"
-  (js/console.log "Here's the computer thoughts: " (pr-str moves))
-  (reduce
-    (fn [acc val]
-      (if (> (count acc) (count val))
-        acc
-        val))
-    (filterv identity moves)))
-
-(defonce game-loop (go-loop []
-  (if (any-moves? "black")
-    (apply-moves! (<! player-chan))
-    (js/console.log "idk"))
-  (<! (timeout 1500))
-  (if-let [moves (any-moves? "white")]
-    (apply-moves! (computer-move moves)))
-  (if-not (and (any-moves? "black") (any-moves? "white"))
-    (do (js/alert "Game Over!") (reset! board (initialize-board))))
-  (recur)))
+    [give-up]
+    [debug-button]])
 
 ;; -------------------------
 ;; Initialize app
