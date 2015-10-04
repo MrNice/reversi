@@ -8,9 +8,11 @@
   (:require-macros [cljs.core.async.macros :refer [go go-loop]])
   (:import goog.History))
 
-(defonce *debug* (atom true))
 (defonce message (atom ""))
+(defonce *debug* (atom true))
+(defonce *watch* (atom false))
 (defn toggle-debug [] (swap! *debug* not))
+(defn toggle-watch [] (swap! *watch* not))
 
 (def player-chan (chan))
 (def board-size 8)
@@ -154,7 +156,12 @@
   (if-not (and (any-moves? "black") (any-moves? "white"))
     (do (js/alert "Game Over!") (reset! board (initialize-board))))
   (if (any-moves? "black")
-    (apply-moves! (<! player-chan))
+    (if @*watch*
+      (if-let [moves (any-moves? "black")]
+        (do
+          (<! (timeout 1250))
+          (apply-moves! (computer-move moves))))
+      (apply-moves! (<! player-chan)))
     true)
   (<! (timeout 1500))
   (if-let [moves (any-moves? "white")]
@@ -193,6 +200,13 @@
                        {:background-color "#fff"})}
       (str "Debug: " debug )]))
 
+(defn watch-button []
+  (let [watch @*watch*]
+    [:div.give-up {:on-click toggle-watch
+      :style (if watch {:background-color "rgb(0, 255, 247)"}
+                       {:background-color "#fff"})}
+      (str "Watch: " watch )]))
+
 (defn message-header []
   [:h2.score {:style {:color "rgba(135, 0, 0, 1)"}} @message])
 
@@ -202,6 +216,7 @@
     [message-header]
     [render-board @board]
     [give-up]
+    [watch-button]
     [debug-button]])
 
 ;; -------------------------
