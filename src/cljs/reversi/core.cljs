@@ -1,11 +1,11 @@
 (ns reversi.core
-  (:require-macros [cljs.core.async.macros :refer [go go-loop]])
   (:require [reagent.core :as reagent :refer [atom]]
             [reagent.session :as session]
             [cljs.core.async :refer [chan timeout <! put!]]
             [secretary.core :as secretary :include-macros true]
             [goog.events :as events]
             [goog.history.EventType :as EventType])
+  (:require-macros [cljs.core.async.macros :refer [go-loop]])
   (:import goog.History))
 
 (defonce *debug* (atom true))
@@ -14,9 +14,9 @@
 
 (def player-chan (chan))
 (def board-size 8)
-;; TODO (Nicholas): Generate these based off of board size
 ; The below was a test board
 ; (def initial-board [[3 3 "black"] [3 4 "white"] [4 3 "white"] [2 4 "black"] [4 2 "black"]])
+;; TODO (Nicholas): Generate these based off of board size
 (def initial-board [[3 3 "white"] [3 4 "black"] [4 3 "black"] [4 4 "white"]])
 (def test-moves [[1 1 "white"]])
 
