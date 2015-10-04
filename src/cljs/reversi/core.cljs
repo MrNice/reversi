@@ -5,7 +5,7 @@
             [secretary.core :as secretary :include-macros true]
             [goog.events :as events]
             [goog.history.EventType :as EventType])
-  (:require-macros [cljs.core.async.macros :refer [go-loop]])
+  (:require-macros [cljs.core.async.macros :refer [go go-loop]])
   (:import goog.History))
 
 (defonce *debug* (atom true))
