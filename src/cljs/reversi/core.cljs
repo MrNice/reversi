@@ -188,7 +188,9 @@
   ^{:key (str x)} [:tr (doall (map-indexed (partial render-cell x) row))])
 
 (defn render-board [board]
-  [:table (map-indexed render-row board)])
+  [:div.container
+    [:table (map-indexed render-row board)]
+    [:span.bottom "REVERSI"]])
 
 (defn give-up []
   "The forfeit button, resets the game state"
