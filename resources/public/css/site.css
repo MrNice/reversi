@@ -51,20 +51,23 @@ table, th, td {
 th, td {
 }
 .give-up {
+  cursor: pointer;
+  background-color: #fff;
+
   margin: 0 auto;
   margin-top: 30px;
   height: 40px;
   width: 120px;
+
+  line-height: 38px;
   text-align: center;
-  cursor: pointer;
   font-weight: 600;
-  background-color: #fff;
 }
 .piece {
+  cursor: pointer;
   height: 40px;
   width: 40px;
   border-radius: 50px;
-  cursor: pointer;
 }
 
 .black {
