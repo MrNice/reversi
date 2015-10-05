@@ -1,7 +1,7 @@
 (ns reversi.core
   (:require [reagent.core :as reagent :refer [atom]]
             [reagent.session :as session]
-            [cljs.core.async :refer [chan timeout <! put!]]
+            [cljs.core.async :refer [chan sliding-buffer timeout <! put! take!]]
             [secretary.core :as secretary :include-macros true]
             [goog.events :as events]
             [alandipert.storage-atom :refer [local-storage]]
@@ -12,10 +12,8 @@
 (defonce message (atom ""))
 (defonce *debug* (local-storage (atom true) :debug))
 (defonce *watch* (local-storage (atom false) :watch))
-(defn toggle-debug [] (swap! *debug* not))
-(defn toggle-watch [] (swap! *watch* not))
 
-(def player-chan (chan))
+(def player-chan (chan (sliding-buffer 1)))
 (def board-size 8)
 ; The below was a test board
 ; (def initial-board [[3 3 "black"] [3 4 "white"] [4 3 "white"] [2 4 "black"] [4 2 "black"]])
@@ -188,11 +186,15 @@
   ^{:key (str x)} [:tr (doall (map-indexed (partial render-cell x) row))])
 
 (defn render-board [board]
-  [:table (map-indexed render-row board)])
+  [:div
+    [:table (map-indexed render-row board)]
+    [:span.bottom]])
 
 (defn give-up []
   "The forfeit button, resets the game state"
   [:div.give-up {:on-click #(reset! board (initialize-board))} "Forfeit"])
+
+(defn toggle-debug [] (swap! *debug* not))
 
 (defn debug-button []
   (let [debug @*debug*]
@@ -200,6 +202,12 @@
       :style (if debug {:background-color "rgb(227, 87, 87)"}
                        {:background-color "#fff"})}
       (str "Debug: " debug )]))
+
+(defn toggle-watch []
+  (if @*watch*
+    (if-let [moves (any-moves? "black")]
+      (put! player-chan (computer-move moves))))
+  (swap! *watch* not))
 
 (defn watch-button []
   (let [watch @*watch*]
