@@ -178,30 +178,30 @@
 (defn render-cell [x y color]
   (let [debug @*debug*]
     ^{:key (str x y debug)}
-    [:td (if debug (str x ", " y))
+    [:td
+      [:a {:title (str x ", " y) :class (if debug "tooltip" "")}
       [:div.piece {:class color
-        :on-click #(handle-player-move x y)}]]))
+        :on-click #(handle-player-move x y)}]]]))
 
 (defn render-row [x row]
   ^{:key (str x)} [:tr (doall (map-indexed (partial render-cell x) row))])
 
 (defn render-board [board]
   [:div
-    [:table (map-indexed render-row board)]
-    [:span.bottom]])
+    [:table (doall (map-indexed render-row board))]])
 
 (defn give-up []
   "The forfeit button, resets the game state"
   [:div.give-up {:on-click #(reset! board (initialize-board))} "Forfeit"])
 
-(defn toggle-debug [] (swap! *debug* not))
+(defn toggle-debug [] (swap! *debug* not) (reagent/flush))
 
 (defn debug-button []
   (let [debug @*debug*]
     [:div.give-up {:on-click toggle-debug
       :style (if debug {:background-color "rgb(227, 87, 87)"}
                        {:background-color "#fff"})}
-      (str "Debug: " debug )]))
+      (str "Debug: " debug)]))
 
 (defn toggle-watch []
   (if @*watch*
@@ -224,9 +224,10 @@
     [score @board]
     [message-header]
     [render-board @board]
-    [give-up]
-    [watch-button]
-    [debug-button]])
+    [:div.buttons
+      [give-up]
+      [watch-button]
+      [debug-button]]])
 
 ;; -------------------------
 ;; Initialize app
